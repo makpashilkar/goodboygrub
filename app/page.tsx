@@ -157,7 +157,7 @@ export default function Home() {
           {/* Logo */}
           <a href="#" className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#FF5722] border-[3px] border-[#111111] flex items-center justify-center font-heading font-bold text-white text-lg">
-              GB
+              <img src="/logo.png" alt="Good Boy Grub Logo" className="w-full h-full object-cover" />
             </div>
             <div className="block">
               <div className="font-heading font-bold text-sm sm:text-lg leading-none tracking-tight">GOOD BOY GRUB</div>
