@@ -387,15 +387,15 @@ export default function Home() {
               <ul className="space-y-3 font-body text-sm text-gray-400">
                 <li className="flex items-start gap-3">
                   <MapPin className="w-4 h-4 text-[#FF5722] flex-shrink-0 mt-0.5" />
-                  <span>Teen Hath Naka, Thane West, Maharashtra 400601</span>
+                  <span>Kolbad, Thane West, Maharashtra 400601</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <MessageCircle className="w-4 h-4 text-[#FF5722] flex-shrink-0 mt-0.5" />
-                  <span>WhatsApp: +91 90000 00000</span>
+                  <span>WhatsApp: +91 877985868</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <Mail className="w-4 h-4 text-[#FF5722] flex-shrink-0 mt-0.5" />
-                  <span>hello@goodboygrub.store</span>
+                  <span>goodboygrub@gmail.com</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <Clock className="w-4 h-4 text-[#FF5722] flex-shrink-0 mt-0.5" />
@@ -413,7 +413,7 @@ export default function Home() {
               </div>
               <div className="flex gap-3 mt-5">
                 <a
-                  href="#"
+                  href="https://www.instagram.com/goodboygrub.food"
                   className="w-10 h-10 border-2 border-gray-500 hover:border-[#FF5722] flex items-center justify-center transition-colors"
                   aria-label="Instagram"
                 >
