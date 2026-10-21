@@ -206,8 +206,7 @@ export async function someOperation(): Promise<T> {
 | `toggleSoldOutItem(itemId)` | Add/remove a menu item ID from the `sold_out_items` array |
 | `subscribeToOrders(callback)` | Realtime subscription (Supabase or localStorage events) |
 | `getRemainingSlots(orders, limit, adjustment)` | Calculate available slots for today |
-| `canPlaceOrder()` | Check 5-minute cooldown; returns `{ allowed, remainingMs }` |
-| `recordOrderPlaced()` | Store timestamp in localStorage for rate limiting |
+| `adminLogin(username, password)` | Validate admin credentials against Supabase `admin_users` via the server |
 | `saveCustomerDetails(details)` | Save customer info to localStorage for auto-fill |
 | `getSavedCustomerDetails()` | Retrieve saved customer info for checkout pre-fill |
 | `isKitchenClosedByTime()` | Returns true if current IST time is outside 11 AM–10 PM |
@@ -308,9 +307,34 @@ If a pincode isn't in the mapping, a fallback distance is estimated based on the
 
 ## 8. Admin Dashboard Architecture
 
-### Passcode Gate
+### Admin Login (Supabase `admin_users`)
 
-The admin page has a simple client-side passcode gate (`admin123`, defined in `lib/menu.ts`). This is **not** real authentication — it's a UI-level gate. For production, replace with Supabase Auth or a server-side session check.
+The `/admin` login takes a **username/email + password**. The page is not linked from the storefront; it is reachable only by URL.
+
+**Schema** (`supabase/migrations/20261021000000_create_admin_users.sql`):
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | `gen_random_uuid()` |
+| `username` | TEXT UNIQUE | username or email |
+| `password_hash` | TEXT | bcrypt via `pgcrypto` `crypt(pw, gen_salt('bf'))` |
+| `created_at` | TIMESTAMPTZ | default `now()` |
+
+**Flow:** `adminLogin(username, password)` stores the credentials in `sessionStorage` and calls `/api/admin/orders`. Every admin API request sends `x-admin-username` / `x-admin-password` headers; the server's `requireAdmin()` (`lib/server/admin-client.ts`) calls the `verify_admin_login()` SQL function with the service-role client. A wrong pair returns 401 (UI shows "Incorrect username or password"); a database/setup error returns 500 with a separate message.
+
+**Security notes:** the table has RLS enabled with no policies and revoked anon/authenticated grants, so the hash is never readable from the browser. The old `ADMIN_PASSCODE` env var is obsolete. For production, consider Supabase Auth or a session cookie instead of re-sending the password on each request.
+
+### Rate Limiting Removed (Friction Reduction)
+
+The old 5-minute localStorage cooldown (`canPlaceOrder()`, `recordOrderPlaced()`, `getOrderCooldownMs()` and the "WAIT X M XX S..." button state) was deleted from `lib/supabase.ts` and `components/storefront/checkout-modal.tsx`. Customers can now place orders back to back. Remaining protection against duplicates/abuse: the per-attempt `idempotencyKey` (double-clicks resolve to one order), strict phone validation, server-side re-pricing, and the admin's manual WhatsApp check before cooking.
+
+### Admin-Initiated WhatsApp Workflow
+
+The flow is flipped: the customer no longer sends a WhatsApp message. The order success ticket shows "Order Received! We will reach out to you on WhatsApp in a few minutes to confirm your order and payment details." and the green "Confirm on WhatsApp" button (and its pre-filled `wa.me` link) is gone. Orders still insert with `is_whatsapp_verified: false`, so the KDS shows UNVERIFIED. The admin messages the customer using the card's WhatsApp link, then toggles the badge to VERIFIED via `setOrderWhatsAppVerified()`.
+
+### Storefront Banner
+
+The "Only X of 10 Daily Slots Remaining" text was replaced with "Limited Stock Only — Order Before We Sell Out" so no slot number is displayed. The slot counter and +/- adjustment remain as an internal KDS tool.
 
 ### Metrics Bar (5 Cards)
 

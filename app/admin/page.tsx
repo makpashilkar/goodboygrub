@@ -70,6 +70,7 @@ type ViewMode = 'kitchen' | 'history';
 
 export default function AdminPage() {
   const [isAuthed, setIsAuthed] = useState(false);
+  const [username, setUsername] = useState('');
   const [passcode, setPasscode] = useState('');
   const [passcodeError, setPasscodeError] = useState(false);
 
@@ -151,8 +152,9 @@ export default function AdminPage() {
   const handlePasscodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginBusy(true);
+    setLoadError(null);
     try {
-      if (await adminLogin(passcode)) {
+      if (await adminLogin(username.trim(), passcode)) {
         setIsAuthed(true);
         setPasscodeError(false);
       } else {
@@ -242,9 +244,21 @@ export default function AdminPage() {
               <Lock className="w-8 h-8 text-white" />
             </div>
             <h1 className="font-heading font-bold text-2xl uppercase text-white tracking-tight">Kitchen Admin</h1>
-            <p className="font-body text-sm text-white/50 mt-1">Enter passcode to access dashboard</p>
+            <p className="font-body text-sm text-white/50 mt-1">Sign in to access dashboard</p>
           </div>
           <form onSubmit={handlePasscodeSubmit} className="space-y-3">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setPasscodeError(false);
+              }}
+              placeholder="Username or email"
+              autoComplete="username"
+              autoFocus
+              className="w-full bg-white text-[#111111] border-[3px] border-[#111111] px-4 py-3 font-body text-sm focus:outline-none focus:shadow-[4px_4px_0px_#FF5722] transition-shadow"
+            />
             <input
               type="password"
               value={passcode}
@@ -252,12 +266,12 @@ export default function AdminPage() {
                 setPasscode(e.target.value);
                 setPasscodeError(false);
               }}
-              placeholder="Passcode"
-              autoFocus
+              placeholder="Password"
+              autoComplete="current-password"
               className="w-full bg-white text-[#111111] border-[3px] border-[#111111] px-4 py-3 font-body text-sm focus:outline-none focus:shadow-[4px_4px_0px_#FF5722] transition-shadow"
             />
             {passcodeError && (
-              <p className="font-body text-sm text-[#FF5722]">Incorrect passcode. Try again.</p>
+              <p className="font-body text-sm text-[#FF5722]">Incorrect username or password. Try again.</p>
             )}
             {loadError && (
               <p className="font-body text-sm text-[#FF5722]">{loadError}</p>

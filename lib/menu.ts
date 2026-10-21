@@ -37,6 +37,5 @@ export const CHEESE_ADDON_PRICE = 30;
 export const DAILY_SLOT_LIMIT = 10;
 export const STORE_OPEN_HOUR = 11;
 export const STORE_CLOSE_HOUR = 23;
-export const ADMIN_PASSCODE = 'admin123';
 export const WHATSAPP_NUMBER = '918779858628';
 export const KITCHEN_HUB_PINCODE = '400601';

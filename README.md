@@ -13,17 +13,17 @@ Good Boy Grub serves three shredded chicken submarine sandwiches at ₹299 each,
 ### Customer Storefront (`/`)
 - **Modern Deli Brutalism UI** — Oswald headings (uppercase, tight tracking), Space Grotesk body text, 3px black borders, hard offset shadows, rotated stickers
 - **Restored navbar** with center links (HOME, MENU, CONTACT) and brutalist white cart button with shopping bag icon and dynamic item count badge
-- **Dark brutalist footer** — 3-column layout with brand bio, HQ/Kitchen contact info (orange Lucide icons), Info links with social buttons, and a bordered KITCHEN PORTAL button
-- Real-time scarcity banner showing remaining daily slots
+- **Dark brutalist footer** — 3-column layout with brand bio, HQ/Kitchen contact info (orange Lucide icons), and Info links with social buttons
+- Urgency banner: "LIMITED STOCK ONLY — ORDER BEFORE WE SELL OUT" (no hardcoded 10-slot count shown to customers; admins can still adjust/exhaust slots from the KDS)
 - 3-item menu catalog with photos, badges, and ₹299 pricing
 - "How It Works" 3-step process section
 - Cart slide-out drawer with receipt styling and extra cheese toggle (+₹30)
 - Guest checkout modal with dynamic delivery fee calculation
-- Order success screen with ticket number and WhatsApp verification handshake
+- Order success screen with ticket number and an "Order Received" notice (the admin follows up on WhatsApp)
 - **KDS Kill Switch + 11 AM–10 PM auto-lock** — When the kitchen is closed (via admin toggle OR outside operating hours), all "Add to Cart" buttons are disabled with grayed-out styling and a bold orange notice: "Kitchen opens at 11 AM (Timings: 11 AM – 10 PM)"
 
 ### Kitchen Admin / KDS (`/admin`)
-- Passcode gate (`admin123`)
+- Username + password login backed by the Supabase `admin_users` table (no public link on the storefront; reach it directly at `/admin`)
 - **Master kitchen Kill Switch** — Toggle store open/closed; syncs to storefront in real time
 - **Daily slots counter** with manual +/- adjustment and reset
 - **5-metric dashboard bar**: Kitchen Switch, Daily Slots, Active Orders, Today's Revenue, **All-Time Revenue**
@@ -32,14 +32,14 @@ Good Boy Grub serves three shredded chicken submarine sandwiches at ₹299 each,
 - **Sound notification** — Toggleable audio bell chime when a new order arrives
 - **Per-item Sold Out toggle** — Mark individual menu items as sold out from the KDS; storefront updates instantly with grayscale image and "Sold Out" overlay
 - **Kanban board** (New → Preparing → Dispatched → Delivered) with WhatsApp chat links and scrap functionality
-- **WhatsApp verification badge** — Each order card shows a toggleable UNVERIFIED / VERIFIED badge so the kitchen knows whether the customer has confirmed via WhatsApp before cooking
+- **WhatsApp verification badge** — Each order card shows a toggleable UNVERIFIED / VERIFIED badge; new orders start UNVERIFIED until the admin has reached out to the customer on WhatsApp and confirmed
 - **Order history view** with permanent delete for test/fake orders
 
 ### Anti-Spam Guest Checkout (No Login Required)
 - **Strict Indian phone validation** — Regex `^[6-9]\d{9}$` plus rejection of repetitive dummy sequences (9999999999, 9876543210, etc.)
-- **5-minute order cooldown** — localStorage-based rate limiting prevents spam submissions from the same device, with a live countdown timer in the checkout modal
+- **No order cooldown** — customers can place multiple orders back to back with no wait time
 - **Returning customer auto-fill** — Name, Phone, Address, and Pincode are saved and pre-filled on subsequent visits
-- **WhatsApp Verification Handshake** — Orders are saved with `is_whatsapp_verified: false`; the order confirmation screen prominently displays a "CONFIRM ORDER ON WHATSAPP (REQUIRED)" button that opens a pre-filled `wa.me` link with the order number, items, address, and total; the KDS shows the verification status on each card
+- **Admin-initiated WhatsApp confirmation** — Orders are saved with `is_whatsapp_verified: false` and the success screen simply says "Order Received! We will reach out to you on WhatsApp in a few minutes to confirm your order and payment details." The customer does not message us; the admin contacts them and then marks the order VERIFIED in the KDS
 
 ### Realtime
 All changes (new orders, status updates, store open/close, slot adjustments, sold-out toggles, WhatsApp verification) sync instantly across the storefront and admin panel via Supabase Realtime subscriptions. The localStorage fallback uses custom DOM events for the same effect.
@@ -149,7 +149,7 @@ The Supabase project is pre-provisioned and credentials are pre-populated in `.e
 | `distance_km` | NUMERIC(5,2) | Distance from kitchen hub |
 | `status` | TEXT | new / preparing / dispatched / delivered / cancelled |
 | `payment_method` | TEXT | Default: gpay_whatsapp |
-| `is_whatsapp_verified` | BOOLEAN | false on creation; kitchen toggles to true |
+| `is_whatsapp_verified` | BOOLEAN | false on creation; admin toggles to true after reaching out on WhatsApp |
 
 **`store_settings` table:**
 | Column | Type | Description |
@@ -161,8 +161,16 @@ The Supabase project is pre-provisioned and credentials are pre-populated in `.e
 | `sold_out_items` | JSONB | Array of menu item IDs marked as sold out |
 | `updated_at` | TIMESTAMPTZ | Last modification timestamp |
 
+**`admin_users` table:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID (PK) | Auto-generated |
+| `username` | TEXT (unique) | Username or email used on the `/admin` login |
+| `password_hash` | TEXT | bcrypt hash (`crypt(password, gen_salt('bf'))`) |
+| `created_at` | TIMESTAMPTZ | Creation timestamp |
+
 ### Row Level Security
-Both tables have RLS enabled with public CRUD policies (`TO anon, authenticated`) since this is a guest-checkout app with no customer authentication. The admin panel is protected by a UI-level passcode gate. For production, consider replacing the passcode with Supabase Auth.
+Orders and settings are accessed through server API routes using the service-role key. The `admin_users` table has RLS enabled with **no** policies, so it is unreadable from the browser; credentials are checked server-side through the `verify_admin_login()` SQL function (bcrypt via `pgcrypto`, executable only by `service_role`).
 
 ## Deployment
 
@@ -182,8 +190,8 @@ Both tables have RLS enabled with public CRUD policies (`TO anon, authenticated`
 
 ## Configuration
 
-### Admin Passcode
-The admin passcode is `admin123` (defined in `lib/menu.ts`). Change it before deploying to production.
+### Admin Login
+Admin credentials live in the Supabase `admin_users` table (see `supabase/migrations/20261021000000_create_admin_users.sql`). Edit the seeded username/password in that SQL **before** running it. The old `ADMIN_PASSCODE` env var is no longer used.
 
 ### WhatsApp Number
 The WhatsApp number for order confirmation is configured in `lib/menu.ts` as `WHATSAPP_NUMBER = '919876543210'`. Update this to the actual shop number.

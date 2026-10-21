@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 /** Kitchen: list all orders (newest first). Requires admin passcode header. */
 export async function GET(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
   try {
     const { data, error } = await getServiceClient()

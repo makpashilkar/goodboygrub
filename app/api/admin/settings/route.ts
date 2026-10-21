@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /** Admin store controls: toggle open, adjust slots, toggle sold-out item, reset today's orders. */
 export async function POST(req: NextRequest) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
   let body: { action?: string; isOpen?: boolean; delta?: number; itemId?: string };
   try {

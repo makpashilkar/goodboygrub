@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, MapPin, Clock } from 'lucide-react';
+import { X, Loader2, MapPin } from 'lucide-react';
 import type { CartItem, OrderRow, CheckoutForm } from '@/lib/types';
 import { CHEESE_ADDON_PRICE } from '@/lib/menu';
 import { getDeliveryInfo } from '@/lib/delivery';
 import {
   createOrder,
-  canPlaceOrder,
-  recordOrderPlaced,
   saveCustomerDetails,
   getSavedCustomerDetails,
-  getOrderCooldownMs,
   ApiError,
 } from '@/lib/supabase';
 
@@ -45,13 +42,6 @@ function isValidIndianPhone(phone: string): boolean {
   return true;
 }
 
-function formatCooldown(ms: number): string {
-  const mins = Math.floor(ms / 60000);
-  const secs = Math.floor((ms % 60000) / 1000);
-  if (mins > 0) return `${mins}m ${secs}s`;
-  return `${secs}s`;
-}
-
 export function CheckoutModal({
   isOpen,
   onClose,
@@ -70,7 +60,6 @@ export function CheckoutModal({
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutForm, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const submittingRef = useRef(false);
   // One key per checkout attempt: retries/double-clicks resolve to the same saved order.
   const idempotencyKeyRef = useRef<string>('');
@@ -93,27 +82,8 @@ export function CheckoutModal({
           addressType: saved.addressType,
         }));
       }
-      const check = canPlaceOrder();
-      if (!check.allowed) {
-        setCooldownRemaining(check.remainingMs);
-      }
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (cooldownRemaining > 0) {
-      const timer = setInterval(() => {
-        setCooldownRemaining((prev) => {
-          if (prev <= 1000) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1000;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [cooldownRemaining]);
 
   if (!isOpen) return null;
 
@@ -132,13 +102,6 @@ export function CheckoutModal({
   const handleSubmit = async () => {
     if (submittingRef.current) return; // guard against rapid repeated clicks
     if (!validate()) return;
-
-    const check = canPlaceOrder();
-    if (!check.allowed) {
-      setCooldownRemaining(check.remainingMs);
-      setSubmitError(`Please wait ${formatCooldown(check.remainingMs)} before placing another order.`);
-      return;
-    }
 
     submittingRef.current = true;
     setIsSubmitting(true);
@@ -159,7 +122,6 @@ export function CheckoutModal({
       });
 
       idempotencyKeyRef.current = ''; // next order gets a fresh key
-      recordOrderPlaced();
       saveCustomerDetails({
         customerName: form.customerName,
         phone: form.phone,
@@ -204,16 +166,6 @@ export function CheckoutModal({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-          {/* Rate limit notice */}
-          {cooldownRemaining > 0 && (
-            <div className="bg-[#FF5722]/10 border-2 border-[#FF5722] px-3 py-2 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#FF5722] flex-shrink-0" />
-              <p className="font-body text-xs text-[#FF5722] font-medium">
-                Please wait {formatCooldown(cooldownRemaining)} before placing another order.
-              </p>
-            </div>
-          )}
-
           {/* Name */}
           <div>
             <label className="font-heading font-bold text-sm uppercase tracking-wide block mb-1.5">
@@ -371,7 +323,7 @@ export function CheckoutModal({
               <span className="font-heading font-bold text-[10px]">₹</span>
             </div>
             <p className="font-body text-xs leading-relaxed">
-              Payment via GPay / UPI. After placing your order, confirm on WhatsApp by sending your GPay screenshot. Cash on Delivery also available.
+              Payment via GPay / UPI. After you place your order, we will message you on WhatsApp to confirm it and share payment details. Cash on Delivery also available.
             </p>
           </div>
         </div>
@@ -380,7 +332,7 @@ export function CheckoutModal({
         <div className="flex-shrink-0 p-4 border-t-[3px] border-[#111111] bg-white">
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || cart.length === 0 || cooldownRemaining > 0}
+            disabled={isSubmitting || cart.length === 0}
             className="w-full bg-[#FF5722] text-white border-[3px] border-[#111111] py-3.5 font-heading font-bold text-base uppercase tracking-wide brutal-shadow brutal-press disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
@@ -388,8 +340,6 @@ export function CheckoutModal({
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Placing Order...
               </>
-            ) : cooldownRemaining > 0 ? (
-              `Wait ${formatCooldown(cooldownRemaining)}...`
             ) : (
               `Place Order • ₹${form.pincode.length === 6 ? grandTotal : cartTotal}`
             )}

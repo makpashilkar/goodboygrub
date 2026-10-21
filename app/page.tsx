@@ -239,10 +239,10 @@ export default function Home() {
           {isKitchenOpen && !slotsExhausted ? (
             <span className="flex items-center justify-center gap-2">
               <Clock className="w-4 h-4" />
-              Only {remainingSlots} of {storeSettings?.daily_slot_limit ?? DAILY_SLOT_LIMIT} Daily Slots Remaining Today
+              Limited Stock Only — Order Before We Sell Out
             </span>
           ) : (
-            <span>{slotsExhausted ? 'All 10 Daily Slots Sold Out — Try Again Tomorrow at 11:00 AM' : 'Kitchen Closed — Opens at 11:00 AM (Timings: 11 AM – 10 PM)'}</span>
+            <span>{slotsExhausted ? 'Sold Out For Today — Try Again Tomorrow at 11:00 AM' : 'Kitchen Closed — Opens at 11:00 AM (Timings: 11 AM – 10 PM)'}</span>
           )}
         </div>
       </section>
@@ -437,12 +437,6 @@ export default function Home() {
             <p className="font-body text-xs text-gray-500 tracking-wide">
               © 2026 GOOD BOY GRUB. ALL RIGHTS RESERVED.
             </p>
-            <a
-              href="/admin"
-              className="font-heading font-bold text-xs uppercase tracking-wide border-2 border-gray-600 hover:border-[#FF5722] hover:text-[#FF5722] px-4 py-2 transition-colors"
-            >
-              Kitchen Portal
-            </a>
           </div>
         </div>
       </footer>
@@ -474,7 +468,6 @@ export default function Home() {
         <OrderSuccess
           order={placedOrder}
           onClose={() => setPlacedOrder(null)}
-          whatsappNumber={WHATSAPP_NUMBER}
         />
       )}
     </div>

@@ -26,9 +26,9 @@ export function getSupabaseClient(): SupabaseClient | null {
   return supabaseInstance;
 }
 
-const LS_LAST_ORDER_KEY = 'gbg_last_order_time';
 const LS_CUSTOMER_KEY = 'gbg_customer_details';
-const SS_ADMIN_PASS_KEY = 'gbg_admin_passcode';
+const SS_ADMIN_USER_KEY = 'gbg_admin_username';
+const SS_ADMIN_PASS_KEY = 'gbg_admin_password';
 
 /* ============================================================
    API HELPERS
@@ -42,14 +42,21 @@ export class ApiError extends Error {
   }
 }
 
-function getAdminPasscode(): string {
-  if (typeof window === 'undefined') return '';
-  return sessionStorage.getItem(SS_ADMIN_PASS_KEY) ?? '';
+function getAdminCredentials(): { username: string; password: string } {
+  if (typeof window === 'undefined') return { username: '', password: '' };
+  return {
+    username: sessionStorage.getItem(SS_ADMIN_USER_KEY) ?? '',
+    password: sessionStorage.getItem(SS_ADMIN_PASS_KEY) ?? '',
+  };
 }
 
 async function api<T>(path: string, init: RequestInit = {}, admin = false): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (admin) headers['x-admin-passcode'] = getAdminPasscode();
+  if (admin) {
+    const creds = getAdminCredentials();
+    headers['x-admin-username'] = creds.username;
+    headers['x-admin-password'] = creds.password;
+  }
   let res: Response;
   try {
     res = await fetch(path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) }, cache: 'no-store' });
@@ -73,16 +80,18 @@ async function api<T>(path: string, init: RequestInit = {}, admin = false): Prom
 }
 
 /* ============================================================
-   ADMIN AUTH (passcode verified by the server)
+   ADMIN AUTH (username + password verified against Supabase admin_users by the server)
    ============================================================ */
 
-/** Returns true if the server accepts the passcode, false if it is wrong. Throws on other failures. */
-export async function adminLogin(passcode: string): Promise<boolean> {
-  sessionStorage.setItem(SS_ADMIN_PASS_KEY, passcode);
+/** Returns true if the server accepts the credentials, false if they are wrong. Throws on other failures. */
+export async function adminLogin(username: string, password: string): Promise<boolean> {
+  sessionStorage.setItem(SS_ADMIN_USER_KEY, username);
+  sessionStorage.setItem(SS_ADMIN_PASS_KEY, password);
   try {
     await api('/api/admin/orders', {}, true);
     return true;
   } catch (err) {
+    sessionStorage.removeItem(SS_ADMIN_USER_KEY);
     sessionStorage.removeItem(SS_ADMIN_PASS_KEY);
     if (err instanceof ApiError && err.status === 401) return false;
     throw err;
@@ -185,38 +194,6 @@ export function defaultSettings(): StoreSettings {
   };
 }
 
-/* ============================================================
-   ANTI-SPAM: RATE LIMITING & CUSTOMER AUTO-FILL
-   ============================================================ */
-
-export function getOrderCooldownMs(): number {
-  return 5 * 60 * 1000;
-}
-
-export function canPlaceOrder(): { allowed: boolean; remainingMs: number } {
-  if (typeof window === 'undefined') return { allowed: true, remainingMs: 0 };
-  try {
-    const last = parseInt(localStorage.getItem(LS_LAST_ORDER_KEY) || '0', 10);
-    if (!last) return { allowed: true, remainingMs: 0 };
-    const elapsed = Date.now() - last;
-    const cooldown = getOrderCooldownMs();
-    if (elapsed < cooldown) {
-      return { allowed: false, remainingMs: cooldown - elapsed };
-    }
-    return { allowed: true, remainingMs: 0 };
-  } catch {
-    return { allowed: true, remainingMs: 0 };
-  }
-}
-
-export function recordOrderPlaced(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(LS_LAST_ORDER_KEY, String(Date.now()));
-  } catch {
-    /* noop */
-  }
-}
 
 export interface SavedCustomerDetails {
   customerName: string;

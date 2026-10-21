@@ -1,32 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Check, MessageCircle, AlertCircle } from 'lucide-react';
+import { X, Check, AlertCircle } from 'lucide-react';
 import type { OrderRow } from '@/lib/types';
 import { CHEESE_ADDON_PRICE } from '@/lib/menu';
 
 interface OrderSuccessProps {
   order: OrderRow;
   onClose: () => void;
-  whatsappNumber: string;
 }
 
-export function OrderSuccess({ order, onClose, whatsappNumber }: OrderSuccessProps) {
-  const [hasConfirmed, setHasConfirmed] = useState(false);
+export function OrderSuccess({ order, onClose }: OrderSuccessProps) {
   const items = order.items || [];
   const subtotal = items.reduce((sum, item) => {
     const unitPrice = item.price + (item.addCheese ? CHEESE_ADDON_PRICE : 0);
     return sum + unitPrice * item.quantity;
   }, 0);
 
-  const itemListText = items
-    .map((i) => `${i.quantity}x ${i.name}${i.addCheese ? ' + Cheese' : ''}`)
-    .join(', ');
-
-  const whatsappText = encodeURIComponent(
-    `Hi Good Boy Grub! I just placed order #${order.order_number}.\n\nItems: ${itemListText}\nAddress: ${order.address}, ${order.pincode}\nTotal: ₹${order.total_amount}\n\nPlease confirm my order. I'll send my GPay screenshot here.`
-  );
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappText}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
@@ -58,18 +47,15 @@ export function OrderSuccess({ order, onClose, whatsappNumber }: OrderSuccessPro
             </div>
           </div>
 
-          {/* Verification Warning */}
-          {!hasConfirmed && (
-            <div className="mb-4 bg-[#FF5722]/10 border-2 border-[#FF5722] p-3 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-[#FF5722] flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-heading font-bold text-xs uppercase text-[#FF5722] mb-1">Verification Required</p>
-                <p className="font-body text-xs text-[#111111]/80 leading-relaxed">
-                  Your order is placed but <strong>not yet verified</strong>. You must confirm on WhatsApp from your real number before the kitchen starts cooking.
-                </p>
-              </div>
+          {/* Order received notice (admin reaches out on WhatsApp) */}
+          <div className="mb-4 bg-[#FF5722]/10 border-2 border-[#FF5722] p-3 flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-[#FF5722] flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-body text-xs text-[#111111]/80 leading-relaxed">
+                Order Received! We will reach out to you on WhatsApp in a few minutes to confirm your order and payment details.
+              </p>
             </div>
-          )}
+          </div>
 
           {/* Receipt details */}
           <div className="border-[3px] border-[#111111] bg-[#F9F8F6] p-4">
@@ -133,31 +119,6 @@ export function OrderSuccess({ order, onClose, whatsappNumber }: OrderSuccessPro
             </div>
           </div>
 
-          {/* WhatsApp Verification CTA */}
-          {!hasConfirmed ? (
-            <>
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setHasConfirmed(true)}
-                className="mt-4 w-full bg-[#25D366] text-[#111111] border-[3px] border-[#111111] py-4 font-heading font-bold text-base uppercase tracking-wide brutal-shadow brutal-press flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-5 h-5" />
-                Confirm Order on WhatsApp (Required)
-              </a>
-              <p className="font-body text-xs text-center mt-2 text-[#111111]/60">
-                Opens WhatsApp with your order details pre-filled. Send the message to verify.
-              </p>
-            </>
-          ) : (
-            <div className="mt-4 bg-[#25D366]/10 border-2 border-[#25D366] p-3 flex items-center gap-2">
-              <Check className="w-5 h-5 text-[#25D366] flex-shrink-0" />
-              <p className="font-body text-xs text-[#111111]/80">
-                WhatsApp opened! Send the pre-filled message to complete verification. The kitchen will start cooking once confirmed.
-              </p>
-            </div>
-          )}
 
           <button
             onClick={onClose}

@@ -7,7 +7,7 @@ const STATUSES = ['new', 'preparing', 'dispatched', 'delivered', 'cancelled'];
 
 /** Update an order's status and/or WhatsApp-verified flag. */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
   let body: { status?: string; is_whatsapp_verified?: boolean };
   try {
@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const denied = requireAdmin(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
   try {
     const { error } = await getServiceClient().from('orders').delete().eq('id', params.id);

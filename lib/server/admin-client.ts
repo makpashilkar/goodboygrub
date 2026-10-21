@@ -1,6 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
 
 /**
  * SERVER ONLY. The service-role key bypasses RLS and must never be imported
@@ -23,22 +22,28 @@ export function getServiceClient(): SupabaseClient {
   return cached;
 }
 
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return timingSafeEqual(ab, bb);
-}
-
-/** Returns a 401 response if the admin passcode header is missing/wrong, else null. */
-export function requireAdmin(req: NextRequest): NextResponse | null {
-  // Set ADMIN_PASSCODE in the server .env. In development only, the previous default is used.
-  const expected = process.env.ADMIN_PASSCODE || (process.env.NODE_ENV !== 'production' ? 'admin1234' : '');
-  const given = req.headers.get('x-admin-passcode') ?? '';
-  if (!expected || !given || !safeEqual(given, expected)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * Returns a 401 response if the admin credentials headers are missing/wrong, else null.
+ * Credentials are validated against the Supabase `admin_users` table via verify_admin_login().
+ */
+export async function requireAdmin(req: NextRequest): Promise<NextResponse | null> {
+  const username = (req.headers.get('x-admin-username') ?? '').trim();
+  const password = req.headers.get('x-admin-password') ?? '';
+  const unauthorized = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!username || !password) return unauthorized();
+  try {
+    const { data, error } = await getServiceClient().rpc('verify_admin_login', {
+      p_username: username,
+      p_password: password,
+    });
+    if (error) {
+      devLog('requireAdmin', { code: error.code, message: error.message });
+      return NextResponse.json({ error: 'Admin login is unavailable. Check the admin_users setup.' }, { status: 500 });
+    }
+    return data === true ? null : unauthorized();
+  } catch (err) {
+    return errorResponse('requireAdmin', err);
   }
-  return null;
 }
 
 /** Logs diagnostics in development only; never logs customer PII or secrets. */
