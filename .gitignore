@@ -37,3 +37,6 @@ next-env.d.ts
 
 # Bolt.new configuration
 /.bolt/
+
+# Supabase migration files
+supabase/migrations/
